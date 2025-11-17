@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anonymous Confession Booth</title>
+
+<style>
+    /* --- Basic Reset & Layout --- */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+        font-family: 'Inter', sans-serif;
+        background-color: #0d1117;
+        color: #c9d1d9;
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+    }
+
+    /* --- Card --- */
+    .card {
+        background-color: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 16px;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+        padding: 24px;
+        width: 100%;
+        max-width: 480px;
+        position: relative;
+        z-index: 10;
+    }
+    .card:hover { transform: translateY(-2px); transition: 0.3s ease; }
+
+    h1, h2 { text-align: center; }
+    h1 { color: #58a6ff; margin-bottom: 24px; font-size: 2rem; }
+    h2 { color: #f9c74f; margin-bottom: 16px; font-size: 1.2rem; }
+
+    /* --- Inputs & Buttons --- */
+    input, textarea, button {
+        width: 100%;
+        padding: 12px;
+        margin-bottom: 12px;
+        border-radius: 8px;
+        border: 1px solid #30363d;
+        background-color: #161b22;
+        color: #fff;
+        font-family: monospace;
+    }
+    textarea { resize: none; height: 120px; }
+    input:focus, textarea:focus { outline: none; border-color: #58a6ff; box-shadow: 0 0 0 3px rgba(88,166,255,0.5); }
+    button {
+        background-color: #ff4d4d;
+        color: #fff;
+        font-weight: bold;
+        cursor: pointer;
+        border: none;
+    }
+    button:hover { background-color: #e63946; }
+
+    /* --- Secondary Buttons --- */
+    .secondary-btn {
+        background-color: #58a6ff;
+        color: #0d1117;
+        font-weight: bold;
+        margin-top: 8px;
+        padding: 10px;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        width: 100%;
+    }
+    .secondary-btn:hover { background-color: #79b8ff; }
+
+    /* --- Back Button --- */
+    #back-button {
+        background-color: #f9c74f;
+        color: #0d1117;
+        font-weight: bold;
+        margin-top: 8px;
+        padding: 10px;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        width: 100%;
+    }
+    #back-button:hover { background-color: #f4d35e; }
+
+    /* --- User Info --- */
+    .hidden { display: none; }
+    .user-info { background-color: #21262d; padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #30363d; text-align: center; }
+    .user-info input { background-color: #0d1117; color: #f9c74f; cursor: pointer; }
+
+    /* --- Confessions --- */
+    .confession-item { 
+        background-color: #21262d; 
+        border-radius: 8px; 
+        padding: 12px; 
+        margin-bottom: 12px; 
+        border-left: 4px solid #58a6ff;
+    }
+    .confession-item p { margin-bottom: 6px; }
+    .confession-item:last-child { margin-bottom: 0; }
+    .confession-timestamp { color: #888; font-size: 0.75rem; text-align: right; }
+
+    /* --- Public Confessions Section --- */
+    .public-confessions-container {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #30363d;
+    }
+    .public-confession-item {
+        background-color: #21262d;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 12px;
+        border-left: 4px solid #f9c74f;
+    }
+    .public-user-id {
+        color: #58a6ff;
+        font-weight: bold;
+        font-size: 0.9rem;
+        margin-bottom: 8px;
+    }
+
+    /* --- View Other User Section --- */
+    .view-other-container {
+        background-color: #21262d;
+        padding: 16px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        border: 1px solid #30363d;
+    }
+    .view-other-container input {
+        margin-bottom: 8px;
+    }
+
+    /* --- Shared Link View --- */
+    .shared-link-view {
+        margin-top: 20px;
+    }
+    .shared-link-confessions {
+        max-height: 300px;
+        overflow-y: auto;
+        margin-bottom: 16px;
+    }
+
+    /* --- Sakura Background --- */
+    #sakura-background {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        pointer-events: none; overflow: hidden; z-index: 0;
+    }
+    .sakura {
+        position: absolute;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background-color: #fcc;
+        opacity: 0.8;
+        box-shadow: 0 0 2px rgba(255,192,203,0.5);
+        animation: fall 15s linear infinite, sway 5s ease-in-out infinite alternate;
+    }
+    @keyframes fall { 0% { transform: translateY(-10vh) rotate(0deg); opacity:0.8; } 100% { transform: translateY(110vh) rotate(360deg); opacity:0; } }
+    @keyframes sway { 0% { margin-left:0; } 50% { margin-left:10px; } 100% { margin-left:0; } }
+
+    /* --- Form Messages --- */
+    .form-message { text-align:center; padding:8px; border-radius:6px; margin-bottom:12px; display:none; }
+    .success { background-color: #1b4332; color: #d8f3dc; }
+    .error { background-color: #6a040f; color: #fcb4b4; }
+
+    /* --- Tabs --- */
+    .tabs { display: flex; margin-bottom: 16px; border-bottom: 1px solid #30363d; }
+    .tab { 
+        flex: 1; 
+        padding: 12px; 
+        text-align: center; 
+        cursor: pointer; 
+        border-bottom: 3px solid transparent;
+        transition: all 0.3s ease;
+    }
+    .tab.active { 
+        border-bottom: 3px solid #58a6ff; 
+        color: #58a6ff;
+        font-weight: bold;
+    }
+    .tab:hover { background-color: #21262d; }
+</style>
+</head>
+<body>
+
+<div id="sakura-background"></div>
+
+<div class="card" id="content">
+    <h1>The Anonymous Booth</h1>
+
+    <!-- Back Button -->
+    <button id="back-button" class="hidden" onclick="goBack()">Back to Main</button>
+
+    <!-- Registration / Login -->
+    <div id="auth-container">
+        <input type="email" id="email" placeholder="Email">
+        <input type="password" id="password" placeholder="Password">
+        <button onclick="registerUser()">Register</button>
+        <button onclick="loginUser()">Login</button>
+        
+        <!-- View Other User Section -->
+        <div class="view-other-container">
+            <h3>View Someone's Public Confessions</h3>
+            <input type="text" id="other-user-id" placeholder="Enter User ID (from their share link)">
+            <button class="secondary-btn" onclick="viewOtherUser()">View Confessions</button>
+        </div>
+    </div>
+
+    <!-- User Info -->
+    <div id="user-info" class="user-info hidden">
+        <p>Your Private Link (Share this!)</p>
+        <input id="share-link" readonly onclick="copyShareLink()">
+        <button onclick="copyShareLink()">Copy Link</button>
+        <p id="copy-message" style="opacity:0; color:#0f0;">Copied!</p>
+        
+        <!-- Tabs for navigation -->
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('my-confessions')">My Inbox</div>
+            <div class="tab" onclick="switchTab('public-confessions')">Public Confessions</div>
+        </div>
+    </div>
+
+    <!-- My Confession Inbox -->
+    <div id="my-confessions-tab" class="tab-content">
+        <div id="confession-inbox-container" class="hidden">
+            <h2>Your Confession Inbox</h2>
+            <div id="confessions-list">
+                <p id="empty-message" style="text-align:center; color:#888;">No confessions received yet.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Public Confessions Tab -->
+    <div id="public-confessions-tab" class="tab-content hidden">
+        <div id="public-confessions-container">
+            <h2>Public Confessions</h2>
+            <p style="text-align:center; color:#888; margin-bottom:16px;">Confessions that users have made public</p>
+            <div id="public-confessions-list">
+                <p id="public-empty-message" style="text-align:center; color:#888;">No public confessions yet.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Other User's Confessions -->
+    <div id="other-user-container" class="hidden">
+        <h2>Confessions for <span id="other-user-display"></span></h2>
+        <button class="secondary-btn" onclick="goBackFromOtherUser()">← Back to Main</button>
+        <div id="other-user-confessions">
+            <p id="other-user-empty-message" style="text-align:center; color:#888;">No confessions for this user yet.</p>
+        </div>
+    </div>
+
+    <!-- Shared Link View (When someone visits a share link) -->
+    <div id="shared-link-container" class="hidden">
+        <h2>Send Anonymous Confession to <span id="shared-user-display"></span></h2>
+        
+        <!-- Confession Form for Shared Link -->
+        <div id="shared-link-form">
+            <div id="shared-form-message" class="form-message"></div>
+            <textarea id="shared-confession-text" placeholder="Type your anonymous thought here..."></textarea>
+            <button onclick="submitSharedConfession()">Send Anonymously</button>
+        </div>
+
+        <!-- Show existing confessions for this user -->
+        <div class="shared-link-view">
+            <h3>Confessions for this user:</h3>
+            <div class="shared-link-confessions" id="shared-link-confessions-list">
+                <p id="shared-link-empty-message" style="text-align:center; color:#888;">No confessions yet. Be the first to send one!</p>
+            </div>
+        </div>
+
+        <button class="secondary-btn" onclick="goToMain()">← Go to Main Page</button>
+    </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getFirestore, collection, addDoc, onSnapshot, query, where, serverTimestamp, setLogLevel, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+// Firebase Config
+const firebaseConfig = {
+    apiKey: "AIzaSyC3W7V8d0dDBbO1osm662W7PcF6_CHGBIM",
+    authDomain: "confession-1039d.firebaseapp.com",
+    projectId: "confession-1039d",
+    storageBucket: "confession-1039d.firebasestorage.app",
+    messagingSenderId: "717688368222",
+    appId: "1:717688368222:web:620346221d7234bd18cf",
+    measurementId: "G-7HVR5X1PC8"
+};
+
+const appId = "default-app-id";
+let app, db, auth, currentUserId=null, isAuthReady=false;
+const PUBLIC_CONFESSION_COLLECTION_PATH = `/artifacts/${appId}/public/data/confessions`;
+
+// Elements
+const authContainer = document.getElementById('auth-container');
+const userInfoDiv = document.getElementById('user-info');
+const shareLinkInput = document.getElementById('share-link');
+const copyMessage = document.getElementById('copy-message');
+const formContainer = document.getElementById('confession-form-container');
+const inboxContainer = document.getElementById('confession-inbox-container');
+const confessionsList = document.getElementById('confessions-list');
+const emptyMessage = document.getElementById('empty-message');
+const backButton = document.getElementById('back-button');
+const otherUserContainer = document.getElementById('other-user-container');
+const otherUserDisplay = document.getElementById('other-user-display');
+const otherUserConfessions = document.getElementById('other-user-confessions');
+const otherUserEmptyMessage = document.getElementById('other-user-empty-message');
+const otherUserIdInput = document.getElementById('other-user-id');
+const publicConfessionsList = document.getElementById('public-confessions-list');
+const publicEmptyMessage = document.getElementById('public-empty-message');
+const sharedLinkContainer = document.getElementById('shared-link-container');
+const sharedUserDisplay = document.getElementById('shared-user-display');
+const sharedLinkConfessionsList = document.getElementById('shared-link-confessions-list');
+const sharedLinkEmptyMessage = document.getElementById('shared-link-empty-message');
+const sharedConfessionTextarea = document.getElementById('shared-confession-text');
+const sharedFormMessage = document.getElementById('shared-form-message');
+
+// --- Parse URL for shared link (using HASH instead of query parameters) ---
+const hash = window.location.hash.substring(1); // Remove the # symbol
+const sharedUserId = hash || null;
+
+// --- Firebase Init ---
+const initializeFirebase = async () => {
+    app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    auth = getAuth(app);
+    setLogLevel('debug');
+    await setPersistence(auth, browserLocalPersistence);
+
+    onAuthStateChanged(auth, (user)=>{
+        if(user){
+            currentUserId = user.uid;
+            isAuthReady = true;
+            authContainer.style.display = 'none';
+            renderOwnerView();
+            setupConfessionListener();
+            setupPublicConfessionsListener();
+        } else {
+            // If not logged in but there's a shared user ID, show shared link view
+            if(sharedUserId){
+                showSharedLinkView(sharedUserId);
+            } else {
+                // If no shared user ID and not logged in, show auth container
+                authContainer.style.display = 'block';
+            }
+        }
+    });
+};
+initializeFirebase();
+
+// --- Show Shared Link View ---
+const showSharedLinkView = (targetUserId) => {
+    console.log('Showing shared link view for:', targetUserId);
+    
+    // Hide everything else
+    authContainer.style.display = 'none';
+    userInfoDiv.style.display = 'none';
+    formContainer.classList.add('hidden');
+    otherUserContainer.classList.add('hidden');
+    inboxContainer.style.display = 'none';
+    
+    // Show shared link view
+    sharedLinkContainer.classList.remove('hidden');
+    sharedUserDisplay.textContent = targetUserId;
+    
+    // Load confessions for this user
+    loadSharedLinkConfessions(targetUserId);
+};
+
+// --- Load Confessions for Shared Link View ---
+const loadSharedLinkConfessions = (userId) => {
+    const confRef = collection(db, PUBLIC_CONFESSION_COLLECTION_PATH);
+    const q = query(confRef, 
+        where("targetUserId", "==", userId),
+        orderBy("timestamp", "desc")
+    );
+    
+    onSnapshot(q, snapshot => {
+        const confessions = [];
+        snapshot.forEach(doc => confessions.push({id: doc.id, ...doc.data()}));
+        displaySharedLinkConfessions(confessions);
+    });
+};
+
+const displaySharedLinkConfessions = (confs) => {
+    sharedLinkConfessionsList.innerHTML = '';
+    if (confs.length === 0) {
+        sharedLinkEmptyMessage.style.display = 'block';
+        sharedLinkConfessionsList.appendChild(sharedLinkEmptyMessage);
+        return;
+    }
+    
+    sharedLinkEmptyMessage.style.display = 'none';
+    confs.forEach(c => {
+        const date = c.timestamp ? new Date(c.timestamp.toMillis()).toLocaleString() : 'Just now';
+        const div = document.createElement('div');
+        div.className = 'confession-item';
+        div.innerHTML = `<p>${escapeHtml(c.confession)}</p><p class="confession-timestamp">${date}</p>`;
+        sharedLinkConfessionsList.appendChild(div);
+    });
+};
+
+// --- Submit Confession from Shared Link ---
+window.submitSharedConfession = async () => {
+    const text = sharedConfessionTextarea.value.trim();
+    if(text.length < 5){ 
+        showSharedFormMessage('Confession must be at least 5 characters', 'error'); 
+        return; 
+    }
+
+    if(!sharedUserId){
+        showSharedFormMessage('Invalid user link', 'error');
+        return;
+    }
+
+    try {
+        const confRef = collection(db, PUBLIC_CONFESSION_COLLECTION_PATH);
+        await addDoc(confRef, {
+            targetUserId: sharedUserId,
+            confession: text,
+            timestamp: serverTimestamp(),
+            senderId: 'anonymous'
+        });
+        sharedConfessionTextarea.value = '';
+        showSharedFormMessage('Confession sent anonymously!', 'success');
+    } catch(e) { 
+        console.error(e); 
+        showSharedFormMessage('Failed to send confession', 'error'); 
+    }
+};
+
+// --- Shared Form Message ---
+const showSharedFormMessage = (msg, type) => {
+    sharedFormMessage.textContent = msg;
+    sharedFormMessage.className = 'form-message ' + type;
+    sharedFormMessage.style.display = 'block';
+    setTimeout(() => { sharedFormMessage.style.display = 'none'; }, 3000);
+};
+
+// --- Go to Main Page ---
+window.goToMain = () => {
+    window.location.hash = '';
+    window.location.reload();
+};
+
+// --- Owner View (when logged in) ---
+const renderOwnerView = () => {
+    if(currentUserId){
+        // Use hash-based URL for sharing (this will work on GitHub Pages)
+        shareLinkInput.value = window.location.origin + window.location.pathname + "#" + currentUserId;
+        userInfoDiv.style.display='block';
+        inboxContainer.style.display='block';
+        backButton.classList.remove('hidden');
+        
+        // Hide other views
+        sharedLinkContainer.classList.add('hidden');
+        formContainer.classList.add('hidden');
+        otherUserContainer.classList.add('hidden');
+    }
+};
+
+// --- Tab Navigation ---
+window.switchTab = (tabName) => {
+    // Update tab styles
+    document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+    document.querySelector(`.tab[onclick="switchTab('${tabName}')"]`).classList.add('active');
+    
+    // Show/hide tab content
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+    document.getElementById(`${tabName}-tab`).classList.remove('hidden');
+};
+
+// --- View Other User's Confessions ---
+window.viewOtherUser = () => {
+    const otherUserId = otherUserIdInput.value.trim();
+    if (!otherUserId) {
+        alert('Please enter a User ID');
+        return;
+    }
+    
+    // Hide everything and show other user's confessions
+    authContainer.style.display = 'none';
+    userInfoDiv.style.display = 'none';
+    formContainer.classList.add('hidden');
+    sharedLinkContainer.classList.add('hidden');
+    otherUserContainer.classList.remove('hidden');
+    
+    otherUserDisplay.textContent = otherUserId;
+    loadOtherUserConfessions(otherUserId);
+};
+
+// --- Load Other User's Confessions ---
+const loadOtherUserConfessions = (userId) => {
+    const confRef = collection(db, PUBLIC_CONFESSION_COLLECTION_PATH);
+    const q = query(confRef, 
+        where("targetUserId", "==", userId),
+        orderBy("timestamp", "desc")
+    );
+    
+    onSnapshot(q, snapshot => {
+        const confessions = [];
+        snapshot.forEach(doc => confessions.push({id: doc.id, ...doc.data()}));
+        displayOtherUserConfessions(confessions);
+    });
+};
+
+const displayOtherUserConfessions = (confs) => {
+    otherUserConfessions.innerHTML = '';
+    if (confs.length === 0) {
+        otherUserEmptyMessage.style.display = 'block';
+        otherUserConfessions.appendChild(otherUserEmptyMessage);
+        return;
+    }
+    
+    otherUserEmptyMessage.style.display = 'none';
+    confs.forEach(c => {
+        const date = c.timestamp ? new Date(c.timestamp.toMillis()).toLocaleString() : 'Just now';
+        const div = document.createElement('div');
+        div.className = 'confession-item';
+        div.innerHTML = `<p>${escapeHtml(c.confession)}</p><p class="confession-timestamp">${date}</p>`;
+        otherUserConfessions.appendChild(div);
+    });
+};
+
+// --- Setup Public Confessions Listener ---
+const setupPublicConfessionsListener = () => {
+    if (!isAuthReady) return;
+    
+    // For demo purposes, we'll show all confessions
+    const confRef = collection(db, PUBLIC_CONFESSION_COLLECTION_PATH);
+    const q = query(confRef, orderBy("timestamp", "desc"));
+    
+    onSnapshot(q, snapshot => {
+        const confessions = [];
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            // Only show confessions that aren't to the current user (to avoid duplicates)
+            if (data.targetUserId !== currentUserId) {
+                confessions.push({id: doc.id, ...data});
+            }
+        });
+        displayPublicConfessions(confessions);
+    });
+};
+
+const displayPublicConfessions = (confs) => {
+    publicConfessionsList.innerHTML = '';
+    if (confs.length === 0) {
+        publicEmptyMessage.style.display = 'block';
+        publicConfessionsList.appendChild(publicEmptyMessage);
+        return;
+    }
+    
+    publicEmptyMessage.style.display = 'none';
+    confs.forEach(c => {
+        const date = c.timestamp ? new Date(c.timestamp.toMillis()).toLocaleString() : 'Just now';
+        const div = document.createElement('div');
+        div.className = 'public-confession-item';
+        div.innerHTML = `
+            <div class="public-user-id">To: ${escapeHtml(c.targetUserId)}</div>
+            <p>${escapeHtml(c.confession)}</p>
+            <p class="confession-timestamp">${date}</p>
+        `;
+        publicConfessionsList.appendChild(div);
+    });
+};
+
+// --- Navigation Functions ---
+window.goBackFromOtherUser = () => {
+    otherUserContainer.classList.add('hidden');
+    if (currentUserId) {
+        userInfoDiv.style.display = 'block';
+        inboxContainer.style.display = 'block';
+    } else {
+        authContainer.style.display = 'block';
+    }
+};
+
+// --- Register & Login ---
+window.registerUser = async () => {
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value.trim();
+    if(!email || !password){ alert("Enter email & password"); return; }
+    try {
+        const userCredential = await createUserWithEmailAndPassword(auth,email,password);
+        currentUserId = userCredential.user.uid;
+    } catch(e){ alert("Registration error: "+e.message); }
+};
+window.loginUser = async () => {
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value.trim();
+    if(!email || !password){ alert("Enter email & password"); return; }
+    try {
+        const userCredential = await signInWithEmailAndPassword(auth,email,password);
+        currentUserId = userCredential.user.uid;
+    } catch(e){ alert("Login error: "+e.message); }
+};
+
+// --- Back Button ---
+window.goBack = () => {
+    // Clear the hash from URL when going back
+    window.location.hash = '';
+    auth.signOut().then(() => {
+        currentUserId = null;
+        isAuthReady = false;
+        authContainer.style.display='block';
+        userInfoDiv.style.display='none';
+        inboxContainer.style.display='none';
+        formContainer.classList.add('hidden');
+        otherUserContainer.classList.add('hidden');
+        sharedLinkContainer.classList.add('hidden');
+        backButton.classList.add('hidden');
+    });
+};
+
+// --- Firebase Confession Listener ---
+const setupConfessionListener = () => {
+    if(!isAuthReady || !currentUserId) return;
+    const confRef = collection(db,PUBLIC_CONFESSION_COLLECTION_PATH);
+    const q = query(confRef, 
+        where("targetUserId","==",currentUserId),
+        orderBy("timestamp", "desc")
+    );
+    onSnapshot(q, snapshot=>{
+        const confessions=[];
+        snapshot.forEach(doc=>confessions.push({id:doc.id,...doc.data()}));
+        displayConfessions(confessions);
+    });
+};
+
+const displayConfessions = (confs)=>{
+    confessionsList.innerHTML='';
+    if(confs.length===0){ 
+        emptyMessage.style.display='block'; 
+        confessionsList.appendChild(emptyMessage); 
+        return; 
+    }
+    emptyMessage.style.display='none';
+    confs.forEach(c=>{
+        const date=c.timestamp?new Date(c.timestamp.toMillis()).toLocaleString():'Just now';
+        const div=document.createElement('div');
+        div.className='confession-item';
+        div.innerHTML=`<p>${escapeHtml(c.confession)}</p><p class="confession-timestamp">${date}</p>`;
+        confessionsList.appendChild(div);
+    });
+};
+
+// --- Helpers ---
+const escapeHtml = (s)=>s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+
+window.copyShareLink=()=>{
+    shareLinkInput.select();
+    shareLinkInput.setSelectionRange(0,99999);
+    document.execCommand('copy');
+    copyMessage.style.opacity=1;
+    setTimeout(()=>{copyMessage.style.opacity=0;},2000);
+};
+
+// --- Sakura Leaves ---
+const sakuraBackground = document.getElementById('sakura-background');
+const NUM_SAKURA_LEAVES = 40;
+const createSakuraLeaf = () => {
+    const leaf = document.createElement('div');
+    leaf.className = 'sakura';
+    const size = Math.random()*5+3;
+    leaf.style.width = `${size}px`; leaf.style.height = `${size}px`;
+    leaf.style.left = `${Math.random()*100}vw`;
+    const fallDuration = Math.random()*10+10;
+    leaf.style.animationDuration = `${fallDuration}s, ${Math.random()*4+4}s`;
+    leaf.style.animationDelay = `-${Math.random()*fallDuration}s`;
+    return leaf;
+};
+for(let i=0;i<NUM_SAKURA_LEAVES;i++) sakuraBackground.appendChild(createSakuraLeaf());
+
+// Initialize view based on URL hash on page load
+document.addEventListener('DOMContentLoaded', function() {
+    if (sharedUserId) {
+        // Small delay to ensure Firebase is initialized
+        setTimeout(() => {
+            if (!currentUserId) {
+                showSharedLinkView(sharedUserId);
+            }
+        }, 1000);
+    }
+});
+</script>
+
+</body>
+</html>
